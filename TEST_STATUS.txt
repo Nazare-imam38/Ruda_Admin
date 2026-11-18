@@ -1,0 +1,13 @@
+Verified in authoring environment:
+- All Python sources compiled (syntax only).
+- All JavaScript/JSX files parsed using TypeScript syntax parser (not a Vite build).
+- Nine offline unit tests passed (see scripts/test_geoserver_pipeline.py). Tests use mocks for GeoServer and GDAL operations; they do not prove deployment works.
+- All three sample shapefile archives parsed and were repackaged without feature/field changes.
+- Both sample GeoTIFFs opened using rasterio and have valid EPSG:4326 georeferencing.
+
+Not verified:
+- Live PostgreSQL / Django migration and API requests: dependencies/services are not installed here.
+- Live GeoServer REST publication, WFS axis handling on real service, WMS response, real GDAL CLI processing, Vite build/browser and Windows launch.
+- Cadastral relationships and production-scale deployment are not implemented in this phase.
+
+Local acceptance: run README sections 1-7 including failed replacement and rollback, inspect the GeoServer layer and pgAdmin tables. Confirm no new spatial table is created for new ordinary WFS uploads. Test existing legacy layer access. Use only the dedicated lab environment.

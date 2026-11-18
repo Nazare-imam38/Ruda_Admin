@@ -1,0 +1,6 @@
+V3 - First GeoServer integration phase
+- Retain legacy physical PostGIS layers. New ordinary vectors published as shapefile WFS; no new spatial table.
+- GeoTIFF metadata, GDAL optimization and WMS publication.
+- Frontend inspect/configure/publish, vector sample preview, attributes, labeling, styling and raster opacity.
+- Versioned publication, compatibility checks, rollback, GeoServer health and service details.
+- Cadastral relationships, production job queue/security and company server deployment are pending.

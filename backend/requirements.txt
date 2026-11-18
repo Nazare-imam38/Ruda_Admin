@@ -1,0 +1,8 @@
+Django>=5.2,<5.3
+djangorestframework>=3.16,<3.17
+psycopg[binary]>=3.2,<3.4
+pyshp>=2.3,<2.4
+pyproj>=3.6,<3.8
+Shapely>=2.0,<2.2
+python-dotenv>=1.0,<2.0
+requests>=2.32,<3

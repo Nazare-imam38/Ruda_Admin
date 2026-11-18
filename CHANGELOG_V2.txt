@@ -1,0 +1,43 @@
+GIS AUTOMATION LAB v2 — DEDICATED TABLES + FIELD SETTINGS
+=======================================================
+
+Why 'Projects' did not appear as a PostgreSQL table:
+  v1 stored everything in a single database table: layers_feature.
+
+What's fixed in v2:
+  1) Every new ZIP import creates a dedicated public.<safe_layer_name>
+     PostGIS table containing gid, source_index, geom (SRID 4326) and
+     typed shapefile attribute columns. Example: Projects => public.projects.
+  2) Migration 0002 automatically converts existing imported layers,
+     including your earlier 'projects', without requiring re-upload.
+  3) Generic API reads those dedicated physical tables.
+  4) Layer settings now have separate tabs: Labels, Attributes, Style,
+     Database. Choose label field, zoom, font size, table columns, popup
+     fields, layer color and see the actual PostgreSQL table name.
+  5) Replacing the uploaded ZIP rebuilds only the managed data table
+     within a transaction, preserving the layer UUID/API.
+  6) Delete removes the layer and its managed table.
+
+UPGRADE YOUR EXISTING INSTALLATION (DO NOT DELETE DATABASE):
+  - Stop Django and React; back up gis_automation_test if desired.
+  - Copy updated source files into your existing GIS-Automation-Lab folder.
+    Keep backend/.env, backend/venv or backend/.venv, and the database.
+  - Run UPGRADE_EXISTING_WINDOWS.bat, or open a backend PowerShell
+    terminal with your venv active and run: python manage.py migrate
+  - Restart backend (python manage.py runserver 8100) and frontend
+    (npm run dev), then refresh http://localhost:5174.
+  - Open pgAdmin -> gis_automation_test -> Schemas -> public -> Tables,
+    right-click Tables -> Refresh. See 'projects' or a unique suffix.
+
+VERIFY YOUR TABLE WITH SQL (run in gis_automation_test):
+  SELECT name, table_name, feature_count FROM layers_layer;
+  SELECT * FROM public.projects LIMIT 10;
+
+If the actual table name differs, use the table_name from the first query.
+PostgreSQL normalizes unquoted names to lowercase.
+
+This is still an unauthenticated LOCAL TEST LAB, not a production tool.
+The migration and PostGIS runtime could not be executed in this build
+container (no PostgreSQL service or Django/npm dependencies installed).
+Pure Python source syntax, JSX syntax, sample parsing and SQL generation
+were checked separately. Perform the first full end-to-end test locally.

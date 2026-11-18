@@ -1,0 +1,14 @@
+GIS AUTOMATION LAB - GEOSERVER UPDATE - NO DOCKER
+
+1. Back up the lab database and project. Keep backend/.env and venv or .venv.
+2. Copy the extracted project over the existing test project.
+3. Install Java and a separate GeoServer (see README section 2). Run GeoServer.
+4. Append GEOSERVER_URL, GEOSERVER_WORKSPACE, GEOSERVER_USER, GEOSERVER_PASSWORD to backend/.env (see example).
+5. In backend: activate existing venv; python -m pip install -r requirements.txt; python manage.py migrate; python manage.py check.
+6. python manage.py runserver 127.0.0.1:8100
+7. In frontend: npm install; npm run dev
+8. Open http://localhost:5174 and click GeoServer: test connection.
+9. Upload sample ZIP -> Inspect -> Configure -> Publish. Inspect Data tab.
+10. For raster test, install GDAL CLI; see README section 3, then upload sample TIFF.
+
+Existing physical PostGIS layers are preserved. New file layers use WFS/WMS. Only phase 1 is implemented. Linked cadastral import, production jobs/security, cache seeding and company deployment are pending. No Docker required. Live system tests must be performed locally.

@@ -1,0 +1,87 @@
+@'
+# Environment variables and credentials
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Django generated files
+*.sqlite3
+*.sqlite3-journal
+media/
+staticfiles/
+uploads/
+
+# React and Node.js
+node_modules/
+dist/
+build/
+.vite/
+npm-debug.log*
+
+# PostgreSQL backups
+*.backup
+*.dump
+*.sql.gz
+
+# GIS datasets
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.qix
+*.sbn
+*.sbx
+*.tif
+*.tiff
+*.mbtiles
+*.gpkg
+*.geojson
+*.kml
+*.kmz
+*.gdb/
+
+# GeoServer local data
+geoserver/
+geoserver_data/
+data_dir/
+
+# Temporary and generated files
+temp/
+tmp/
+*.log
+*.tmp
+*.zip
+*.rar
+*.7z
+
+# Retain bundled synthetic GIS test datasets
+!sample_data/01_Spot_Level_Points.zip
+!sample_data/02_Water_Lines.zip
+!sample_data/03_Mauza_Polygons.zip
+!sample_data/04_Test_Drone_Imagery.tif
+!sample_data/05_Test_DSM.tif
+
+# IDE and system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+'@ | Set-Content -Encoding ASCII .gitignore
