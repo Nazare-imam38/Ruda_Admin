@@ -8,7 +8,7 @@ from django.db import migrations, models
 
 
 def backfill_existing_layers(apps, schema_editor):
-    from layers.physical_tables import make_table_for_layer
+    from api.physical_tables import make_table_for_layer
     Layer = apps.get_model('layers', 'Layer')
     conn = schema_editor.connection
     for layer in Layer.objects.using(conn.alias).all().iterator():

@@ -2,7 +2,7 @@
 import uuid
 import django.db.models.deletion
 from django.db import migrations, models
-import layers.models
+import api.models
 
 
 class Migration(migrations.Migration):
@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
                 ('field_schema', models.JSONField(default=list)),
                 ('bbox', models.JSONField(blank=True, null=True)),
                 ('feature_count', models.PositiveIntegerField(default=0)),
-                ('style', models.JSONField(default=layers.models.default_style)),
+                ('style', models.JSONField(default=api.models.default_style)),
                 ('label_field', models.CharField(blank=True, default='', max_length=128)),
                 ('show_labels', models.BooleanField(default=False)),
                 ('show_popup', models.BooleanField(default=True)),

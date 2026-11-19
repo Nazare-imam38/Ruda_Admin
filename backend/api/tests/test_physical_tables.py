@@ -1,5 +1,5 @@
 from django.test import SimpleTestCase
-from layers.physical_tables import (
+from api.physical_tables import (
     normalize_identifier, column_map_for_schema, column_type, adapt_value,
 )
 

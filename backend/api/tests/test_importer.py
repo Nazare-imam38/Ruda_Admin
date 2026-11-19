@@ -2,7 +2,7 @@ import io
 import zipfile
 from pathlib import Path
 from django.test import SimpleTestCase
-from layers.importer import ImportValidationError, parse_shapefile
+from api.importer import ImportValidationError, parse_shapefile
 
 DATA = Path(__file__).resolve().parents[3] / 'sample_data'
 
