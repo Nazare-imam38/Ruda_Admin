@@ -16,6 +16,7 @@ const STYLE = {
   },
   layers: [{ id: 'osm-base', type: 'raster', source: 'osm' }],
 };
+const DEFAULT_CENTER = [74.32, 31.52];
 
 const sourceId = (id) => `data-${id}`;
 const drawIds = (id) => [`fill-${id}`, `outline-${id}`, `line-${id}`, `point-${id}`, `label-${id}`, `raster-${id}`];
@@ -23,25 +24,37 @@ const drawIds = (id) => [`fill-${id}`, `outline-${id}`, `line-${id}`, `point-${i
 function addLayer(map, item) {
   const source = sourceId(item.id);
   const color = item.style?.color || '#2563eb';
+  const layerOpacity = item.style?.layer_opacity ?? 1;
   if (item.geometry_type === 'Raster') {
     map.addSource(source,{type:'raster',tileSize:256,tiles:[`${window.location.origin}/api/layers/${item.id}/tile/?v=${item.version}&bbox={bbox-epsg-3857}`], ...(item.bbox?{bounds:item.bbox}:{})});
-    map.addLayer({id:`raster-${item.id}`,type:'raster',source,paint:{'raster-opacity':item.style?.raster_opacity??1}});
+    map.addLayer({id:`raster-${item.id}`,type:'raster',source,paint:{'raster-opacity':(item.style?.raster_opacity??1)*layerOpacity}});
     return;
   }
   map.addSource(source, { type: 'geojson', data: item.preview_geojson || { type: 'FeatureCollection', features: [] } });
   if (item.geometry_type === 'Polygon') {
     map.addLayer({
       id: `fill-${item.id}`, type: 'fill', source,
-      paint: { 'fill-color': color, 'fill-opacity': item.style?.fill_opacity ?? 0.3 },
+      paint: {
+        'fill-color': color,
+        'fill-opacity': (item.style?.fill_opacity ?? 0.3) * layerOpacity,
+      },
     });
     map.addLayer({
       id: `outline-${item.id}`, type: 'line', source,
-      paint: { 'line-color': color, 'line-width': item.style?.line_width ?? 3 },
+      paint: {
+        'line-color': color,
+        'line-width': item.style?.line_width ?? 3,
+        'line-opacity': layerOpacity,
+      },
     });
   } else if (item.geometry_type === 'Line') {
     map.addLayer({
       id: `line-${item.id}`, type: 'line', source,
-      paint: { 'line-color': color, 'line-width': item.style?.line_width ?? 3 },
+      paint: {
+        'line-color': color,
+        'line-width': item.style?.line_width ?? 3,
+        'line-opacity': layerOpacity,
+      },
       layout: { 'line-join': 'round', 'line-cap': 'round' },
     });
   } else {
@@ -50,6 +63,8 @@ function addLayer(map, item) {
       paint: {
         'circle-color': color, 'circle-radius': item.style?.point_radius ?? 6,
         'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5,
+        'circle-opacity': layerOpacity,
+        'circle-stroke-opacity': layerOpacity,
       },
     });
   }
@@ -101,7 +116,17 @@ function openFeaturePopup(map, found, layer) {
     .addTo(map);
 }
 
-export default function MapPanel({ layers, selectedLayer, onOpenAttributes, zoomTarget }) {
+export default function MapPanel({
+  layers,
+  selectedLayer,
+  onOpenAttributes,
+  zoomTarget,
+  showEmptyNotice = true,
+  showStatusBanner = true,
+  showLandControls = false,
+  initialCenter = DEFAULT_CENTER,
+  initialZoom = 10.7,
+}) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const drawIdsRef = useRef([]);
@@ -114,11 +139,18 @@ export default function MapPanel({ layers, selectedLayer, onOpenAttributes, zoom
   useEffect(() => {
     const map = new maplibregl.Map({
       container: containerRef.current, style: STYLE,
-      center: [74.32, 31.52], zoom: 10.7,
+      center: initialCenter, zoom: initialZoom,
       attributionControl: true,
     });
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    if (showLandControls) {
+      map.addControl(new maplibregl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: false,
+      }), 'top-right');
+      map.addControl(new maplibregl.FullscreenControl(), 'top-right');
+    }
     map.addControl(new maplibregl.ScaleControl({ maxWidth: 140, unit: 'metric' }), 'bottom-left');
     map.on('load', () => setReady(true));
     map.on('moveend', () => setViewportVersion(value => value + 1));
@@ -142,7 +174,7 @@ export default function MapPanel({ layers, selectedLayer, onOpenAttributes, zoom
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [showLandControls, initialCenter, initialZoom]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -160,12 +192,6 @@ export default function MapPanel({ layers, selectedLayer, onOpenAttributes, zoom
       for (const id of drawIds(item.id)) if (map.getLayer(id)) newDrawIds.push(id);
     }
     drawIdsRef.current = newDrawIds;
-    console.log(
-      'LAYERS RECEIVED:',
-      layers.map(item => ({ name: item.name, visible: item.is_visible }))
-    );
-
-    console.log('LAYERS RENDERED ON MAP:', newDrawIds);
     // Trigger data fetch after dynamic source recreation.
     setViewportVersion(value => value + 1);
   }, [layers, ready]);
@@ -205,19 +231,25 @@ export default function MapPanel({ layers, selectedLayer, onOpenAttributes, zoom
     if (west === east && south === north) {
       map.flyTo({ center: [west, south], zoom: 15, duration: 650 });
     } else {
-      map.fitBounds([[west, south], [east, north]], { padding: 80, duration: 650, maxZoom: 16 });
+      map.fitBounds([[west, south], [east, north]], {
+        padding: zoomTarget.padding ?? 80,
+        duration: 650,
+        maxZoom: zoomTarget.maxZoom ?? 16,
+      });
     }
   }, [zoomTarget, ready]);
 
   return (
     <section className="map-shell">
       <div className="map-container" ref={containerRef} />
-      <div className="map-top-banner">
-        <div className="status-dot" />
-        <span>Dynamic WFS / WMS · legacy PostGIS</span>
-      </div>
+      {showStatusBanner && (
+        <div className="map-top-banner">
+          <div className="status-dot" />
+          <span>Dynamic WFS / WMS · legacy PostGIS</span>
+        </div>
+      )}
       {warning && <div className="map-warning">{warning}</div>}
-      {layers.length === 0 && (
+      {showEmptyNotice && layers.length === 0 && (
         <div className="empty-map-notice">
           <div className="empty-map-icon">◈</div>
           <h3>Ready for your first dataset</h3>

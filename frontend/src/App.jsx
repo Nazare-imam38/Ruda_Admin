@@ -9,6 +9,7 @@ import UploadForm from './components/UploadForm';
 import MapPanel from './components/MapPanel';
 import LayerSettings from './components/LayerSettings';
 import AttributeTable from './components/AttributeTable';
+import LandInformation from './pages/LandInformation/LandInformation';
 
 function geometryIcon(type) {
   return type === 'Point' ? '●' : type === 'Line' ? '〰' : '⬡';
@@ -21,6 +22,7 @@ export default function App() {
   const [layers, setLayers] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [activeTab, setActiveTab] = useState('layers');
+  const [activePage, setActivePage] = useState('gis');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tableOpen, setTableOpen] = useState(false);
   const [toast, setToast] = useState(null);
@@ -84,10 +86,18 @@ export default function App() {
         <div className="brand"><div className="brand-logo"><Layers3 size={24}/></div><div><strong>GIS Automation</strong><span>LAB · GEOSERVER v3</span></div></div>
         <div className="environment-note"><span className="pulse-dot" /> SEPARATE TEST PROJECT <span className="environment-pill">SAFE LAB</span></div>
         <div className="sidebar-tabs">
+          <button
+              className={activePage === 'land' ? 'active' : ''}
+             onClick={() => {
+              window.location.href = '/land-information';
+            }}
+            >
+              <Map size={17} /> Land Information
+            </button>
           <button className={activeTab === 'layers' ? 'active' : ''} onClick={() => setActiveTab('layers')}><Layers3 size={17}/> Map Layers</button>
           <button className={activeTab === 'upload' ? 'active' : ''} onClick={() => setActiveTab('upload')}><UploadCloud size={17}/> Upload dataset</button>
         </div>
-        {activeTab === 'upload' ? (
+        {activePage === 'land' ? null : activeTab === 'upload' ? (
           <div className="sidebar-content"><div className="sidebar-content-title"><span>NEW DATASET</span><h3>Upload dataset</h3><p>Configure, then publish WFS or WMS.</p></div><UploadForm onUploaded={onUploaded} notify={notify} onPreview={setDraftPreview}/></div>
         ) : (
           <div className="sidebar-content">
@@ -111,7 +121,13 @@ export default function App() {
         )}
         <div className="sidebar-bottom"><div className={`status-indicator ${serverStatus}`}><span className="status-dot"/>{serverStatus === 'connected' ? 'PostGIS connected' : serverStatus === 'checking' ? 'Checking server' : 'Backend offline'}</div><span className="muted">Database: gis_automation_test</span><button className="button secondary full" onClick={checkGeoServer} disabled={geoStatus==='checking'}>GeoServer: {geoStatus==='connected'?'connected':geoStatus==='checking'?'checking…':'test connection'}</button></div>
       </aside>
-      <div className="main-column">
+      <div className={activePage === 'land' ? 'main-column land-page-mode' : 'main-column'}>
+        {activePage === 'land' ? (
+          <div className="w-full h-full min-h-0 flex-1 overflow-hidden">
+            <LandInformation />
+          </div>
+        ) : (
+          <>
         <header className="topbar"><div className="topbar-title"><span>PROJECT / TEST ENVIRONMENT</span><h1>Dynamic GIS Layer Manager</h1></div><div className="topbar-actions"><span className="topbar-chip"><CheckCircle2 size={14}/> Independent of RUDA</span><button className="button topbar-upload" onClick={() => setActiveTab('upload')}><UploadCloud size={16}/> Upload dataset</button></div></header>
         <div className="workspace">
           <div className="map-workspace"><MapPanel layers={mapLayers} selectedLayer={selectedLayer} onOpenAttributes={() => setTableOpen(true)} zoomTarget={zoomTarget}/>
@@ -120,6 +136,8 @@ export default function App() {
           {settingsOpen && selectedLayer && <LayerSettings layer={selectedLayer} onClose={() => setSettingsOpen(false)} onUpdated={handleUpdated} onDeleted={handleDeleted} onZoom={item => setZoomTarget({ bbox: item.bbox, token: Date.now() })} notify={notify}/>} 
         </div>
         <footer className="statusbar"><span><Map size={13}/> OpenStreetMap basemap</span><span><Crosshair size={13}/> EPSG:4326 · WGS 84</span><span><Table2 size={13}/> WFS / WMS + legacy PostGIS</span><span className="statusbar-right">Built for RUDA workflow testing, not production</span></footer>
+          </>
+        )}
       </div>
       {toast && <div role="status" key={toast.key} className={`toast ${toast.type === 'error' ? 'error' : 'success'}`}>{toast.type === 'error' ? <AlertCircle size={19}/> : <CheckCircle2 size={19}/>}<span>{toast.message}</span><button aria-label="Dismiss notification" onClick={() => setToast(null)}><X size={16}/></button></div>}
     </div>
