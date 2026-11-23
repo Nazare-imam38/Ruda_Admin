@@ -55,20 +55,38 @@ class LayerDetailView(APIView):
         except (ValueError, TypeError, ImportValidationError) as exc:
             return error(str(exc))
 
+    
     def delete(self, request, layer_id):
-        with transaction.atomic():
-            layer = get_object_or_404(
-                Layer.objects.select_for_update(),
-                pk=layer_id,
-            )
+        try:
+            with transaction.atomic():
+                layer = get_object_or_404(
+                    Layer.objects.select_for_update(),
+                    pk=layer_id,
+                )
 
-            if not layer.publication:
+                # Remove the GeoServer publication first.
+                if layer.publication:
+                    from api.geoserver import GeoServer
+
+                    gs = GeoServer()
+
+                    if not gs.discard(layer.publication):
+                        raise PublishError(
+                            "Could not safely remove the GeoServer publication. "
+                            "The database record was not deleted."
+                        )
+
+                # Remove the managed PostGIS table, if one exists.
                 drop_layer_table(layer)
 
-            # Keep remote GeoServer publications for recovery and audit.
-            layer.delete()
+                # Remove the Django registry record.
+                layer.delete()
 
-        return Response(status=204)
+            return Response(status=204)
+
+        except PublishError as exc:
+            return error(exc, 502)
+
 
 
 class ReplaceView(APIView):

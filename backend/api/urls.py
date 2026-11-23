@@ -13,4 +13,15 @@ urlpatterns = [
     path("layers/<uuid:layer_id>/replace/", ReplaceView.as_view(), name="layer-replace"),
     path("layers/<uuid:layer_id>/features/", FeaturesView.as_view(), name="features"),
     path("layers/<uuid:layer_id>/attributes/", AttributesView.as_view(), name="attributes"),
+
+    path(
+        "layers/<uuid:layer_id>/features/<int:feature_id>/update/",
+        FeatureUpdateView.as_view(),
+        name="update-feature",
+    ),
+    path(
+        "layers/<uuid:layer_id>/features/<int:feature_id>/delete/",
+        FeatureDeleteView.as_view(),
+        name="delete-feature",
+    ),
 ]

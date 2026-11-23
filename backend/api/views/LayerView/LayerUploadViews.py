@@ -31,10 +31,24 @@ def upload_layer(request):
 
         name, group, project = read_basic_metadata(request)
 
+        # Prevent duplicate layer names within the same project.
+        existing_layer = Layer.objects.filter(
+            name__iexact=name.strip(),
+            project_id=project,
+        ).first()
+
+        if existing_layer:
+            return error(
+                f'A layer named "{existing_layer.name}" already exists. '
+                'Please choose another layer name.',
+                409,
+            )
+
         layer = Layer(
-            name=name,
+            name=name.strip(),
             group=group,
             project_id=project,
+            is_visible=False,
         )
 
         config = json.loads(

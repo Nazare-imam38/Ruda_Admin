@@ -54,7 +54,7 @@ class FeaturesView(APIView):
         if layer.publication.get("kind") == "wms":
             return error("Raster layers use the WMS tile endpoint.")
 
-        if layer.publication.get("kind") == "wfs":
+        if not layer.table_name and layer.publication.get("kind") == "wfs":
             try:
                 result = GeoServer().features(
                     layer.publication,
@@ -149,7 +149,7 @@ class AttributesView(APIView):
                 "disabled": True,
             })
 
-        if layer.publication.get("kind") == "wfs":
+        if not layer.table_name and layer.publication.get("kind") == "wfs":
             try:
                 result = GeoServer().features(
                     layer.publication,

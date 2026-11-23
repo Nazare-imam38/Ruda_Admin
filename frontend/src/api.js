@@ -26,4 +26,18 @@ export const api = {
   remove: (id) => request(`/layers/${id}/`, { method: 'DELETE' }),
   geojson: (id, bbox, signal) => request(`/layers/${id}/features/?bbox=${encodeURIComponent(bbox)}`, { signal }),
   attributes: (id, page, pageSize = 25) => request(`/layers/${id}/attributes/?page=${page}&page_size=${pageSize}`),
+
+  updateFeature: (layerId, featureId, patch) =>
+    request(`/layers/${layerId}/features/${featureId}/update/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    }),
+
+  deleteFeature: (layerId, featureId) =>
+    request(`/layers/${layerId}/features/${featureId}/delete/`, {
+      method: 'DELETE',
+    }),
 };
+
+

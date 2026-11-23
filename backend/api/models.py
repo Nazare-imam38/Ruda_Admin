@@ -28,7 +28,7 @@ class Layer(models.Model):
     label_field = models.CharField(max_length=128, blank=True, default='')
     show_labels = models.BooleanField(default=False)
     show_popup = models.BooleanField(default=True)
-    is_visible = models.BooleanField(default=True)
+    is_visible = models.BooleanField(default=False)
     label_min_zoom = models.PositiveSmallIntegerField(default=10)
     label_size = models.PositiveSmallIntegerField(default=12)
     publication = models.JSONField(default=dict, blank=True)

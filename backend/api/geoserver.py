@@ -71,31 +71,108 @@ class GeoServer:
         self.request('GET', '/rest/workspaces.json', timeout=(4, 8))
         return self.workspace
 
-    def publish(self, kind, data, name=None):
+    
+    
+    def publish(self, kind, data, name=None, layer_name=None, title=None):
         self.workspace_ready()
+
+        # Unique datastore name; keep it for safe resource management.
         name = name or store_id()
+
+        layer_name = layer_name or name
+        title = title or layer_name
+
+        if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]{0,59}', layer_name):
+            raise PublishError('Invalid GeoServer layer name.')
+
         collection = 'datastores' if kind == 'wfs' else 'coveragestores'
         path = f'{self.ws}/{collection}/{name}'
-        publication = {'kind': kind, 'workspace': self.workspace, 'store': name, 'name': '', 'collection': collection}
+
+        publication = {
+            'kind': kind,
+            'workspace': self.workspace,
+            'store': name,
+            'name': '',
+            'collection': collection,
+        }
+
         try:
             if kind == 'wfs':
-                self.request('PUT', path + '/file.shp', params={'configure': 'first'}, data=canonical_zip(data, name), headers={'Content-Type': 'application/zip'})
-                response = self.json(self.request('GET', path + '/featuretypes.json'))
+                self.request(
+                    'PUT',
+                    path + '/file.shp',
+                    params={'configure': 'first'},
+                    data=canonical_zip(data, layer_name),
+                    headers={'Content-Type': 'application/zip'},
+                )
+
+                response = self.json(
+                    self.request('GET', path + '/featuretypes.json')
+                )
                 entries = (response.get('featureTypes') or {}).get('featureType', [])
-            else:
+
+            elif kind == 'wms':
                 with open(data, 'rb') as stream:
-                    self.request('PUT', path + '/file.geotiff', params={'configure': 'first', 'coverageName': name}, data=stream, headers={'Content-Type': 'image/tiff'}, timeout=(8, 600))
-                response = self.json(self.request('GET', path + '/coverages.json'))
+                    self.request(
+                        'PUT',
+                        path + '/file.geotiff',
+                        params={
+                            'configure': 'first',
+                            'coverageName': layer_name,
+                        },
+                        data=stream,
+                        headers={'Content-Type': 'image/tiff'},
+                        timeout=(8, 600),
+                    )
+
+                response = self.json(
+                    self.request('GET', path + '/coverages.json')
+                )
                 entries = (response.get('coverages') or {}).get('coverage', [])
+
+            else:
+                raise PublishError('Unsupported publication type.')
+
             if isinstance(entries, dict):
                 entries = [entries]
-            if len(entries) != 1 or not entries[0].get('name'):
-                raise PublishError('Expected exactly one published GeoServer layer in the new store.')
-            publication['name'] = entries[0]['name']
+
+            matching = [
+                item for item in entries
+                if item.get('name') == layer_name
+            ]
+
+            if len(matching) != 1:
+                raise PublishError(
+                    'GeoServer did not create the expected named layer.'
+                )
+
+            # Update the published resource title to the user-facing layer name.
+            resource_path = (
+                f'{path}/featuretypes/{layer_name}.json'
+                if kind == 'wfs'
+                else f'{path}/coverages/{layer_name}.json'
+            )
+
+            resource_key = 'featureType' if kind == 'wfs' else 'coverage'
+
+            self.request(
+                'PUT',
+                resource_path,
+                json={
+                    resource_key: {
+                        'title': title,
+                    }
+                },
+            )
+
+            publication['name'] = matching[0]['name']
             return publication
+
         except Exception:
             self.discard(publication)
             raise
+
+
 
     def discard(self, publication):
         # A failed cleanup should not hide the actual import failure. Never purge other stores.

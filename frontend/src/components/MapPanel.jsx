@@ -160,6 +160,12 @@ export default function MapPanel({ layers, selectedLayer, onOpenAttributes, zoom
       for (const id of drawIds(item.id)) if (map.getLayer(id)) newDrawIds.push(id);
     }
     drawIdsRef.current = newDrawIds;
+    console.log(
+      'LAYERS RECEIVED:',
+      layers.map(item => ({ name: item.name, visible: item.is_visible }))
+    );
+
+    console.log('LAYERS RENDERED ON MAP:', newDrawIds);
     // Trigger data fetch after dynamic source recreation.
     setViewportVersion(value => value + 1);
   }, [layers, ready]);

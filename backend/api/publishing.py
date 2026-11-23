@@ -5,7 +5,7 @@ import logging
 import math
 import tempfile
 import zipfile
-
+import re
 import shapefile
 from pyproj import CRS, Transformer
 from shapely import make_valid
@@ -280,7 +280,23 @@ def publish_upload(layer, upload, configure=None, replace=False):
                     configure(layer)
                 if kind == 'wms' and (layer.show_attributes or layer.show_labels or layer.show_popup):
                     raise ImportValidationError('Raster layers do not support vector labels or attributes.')
-            publication = gs.publish(kind, data)
+            safe_layer_name = re.sub(
+                r'[^A-Za-z0-9_]+',
+                '_',
+                layer.name.strip()
+            ).strip('_')
+
+            if not safe_layer_name or not safe_layer_name[0].isalpha():
+                safe_layer_name = 'layer_' + safe_layer_name
+
+            safe_layer_name = safe_layer_name[:60]
+
+            publication = gs.publish(
+                kind,
+                data,
+                layer_name=safe_layer_name,
+                title=layer.name,
+            )
             if kind == 'wms':
                 publication['raster'] = meta['raster']
             elif meta['geometry_repair']['repaired_features']:
