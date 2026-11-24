@@ -81,6 +81,7 @@ def apply_settings(layer, data):
         "name",
         "group",
         "project_id",
+        "relationship",
         "is_visible",
         "show_labels",
         "show_popup",
@@ -94,6 +95,89 @@ def apply_settings(layer, data):
     }
 
     extra = set(data) - editable
+    if "relationship" in data:
+            relationship = data["relationship"]
+
+            if not isinstance(relationship, dict):
+                raise ImportValidationError(
+                    "Relationship must be a JSON object."
+                )
+
+            allowed_relationship_fields = {
+                "parent_layer_id",
+                "parent_field",
+                "child_field",
+                "type",
+            }
+
+            if set(relationship) - allowed_relationship_fields:
+                raise ImportValidationError(
+                    "Relationship contains unsupported properties."
+                )
+
+            if relationship:
+                required = {
+                    "parent_layer_id",
+                    "parent_field",
+                    "child_field",
+                }
+
+                if not required.issubset(relationship):
+                    raise ImportValidationError(
+                        "Parent layer, parent field and child field are required."
+                    )
+
+                parent_layer_id = str(
+                    relationship["parent_layer_id"]
+                ).strip()
+
+                parent_field = str(
+                    relationship["parent_field"]
+                ).strip()
+
+                child_field = str(
+                    relationship["child_field"]
+                ).strip()
+
+                if not parent_layer_id or not parent_field or not child_field:
+                    raise ImportValidationError(
+                        "Relationship values cannot be empty."
+                    )
+
+                if child_field not in layer.field_names:
+                    raise ImportValidationError(
+                        "Child field does not exist in this layer."
+                    )
+
+                from api.models import Layer
+
+                parent = Layer.objects.filter(
+                    pk=parent_layer_id
+                ).first()
+
+                if not parent:
+                    raise ImportValidationError(
+                        "Selected parent layer does not exist."
+                    )
+
+                if parent_field not in parent.field_names:
+                    raise ImportValidationError(
+                        "Parent field does not exist in the selected layer."
+                    )
+
+                if parent.pk == layer.pk:
+                    raise ImportValidationError(
+                        "A layer cannot be its own parent."
+                    )
+
+                relationship = {
+                    "parent_layer_id": str(parent.pk),
+                    "parent_field": parent_field,
+                    "child_field": child_field,
+                    "type": relationship.get("type", "many-to-one"),
+                }
+
+            layer.relationship = relationship
 
     if extra:
         raise ImportValidationError(

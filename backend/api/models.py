@@ -32,6 +32,7 @@ class Layer(models.Model):
     label_min_zoom = models.PositiveSmallIntegerField(default=10)
     label_size = models.PositiveSmallIntegerField(default=12)
     publication = models.JSONField(default=dict, blank=True)
+    relationship = models.JSONField(default=dict, blank=True)
     publication_history = models.JSONField(default=list, blank=True)
     version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)

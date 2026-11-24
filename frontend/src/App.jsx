@@ -98,7 +98,12 @@ export default function App() {
           <button className={activeTab === 'upload' ? 'active' : ''} onClick={() => setActiveTab('upload')}><UploadCloud size={17}/> Upload dataset</button>
         </div>
         {activePage === 'land' ? null : activeTab === 'upload' ? (
-          <div className="sidebar-content"><div className="sidebar-content-title"><span>NEW DATASET</span><h3>Upload dataset</h3><p>Configure, then publish WFS or WMS.</p></div><UploadForm onUploaded={onUploaded} notify={notify} onPreview={setDraftPreview}/></div>
+          <div className="sidebar-content"><div className="sidebar-content-title"><span>NEW DATASET</span><h3>Upload dataset</h3><p>Configure, then publish WFS or WMS.</p></div><UploadForm
+  layers={layers}
+  onUploaded={onUploaded}
+  notify={notify}
+  onPreview={setDraftPreview}
+/></div>
         ) : (
           <div className="sidebar-content">
             <div className="list-title"><div><span className="mini-eyebrow">DATA CATALOG</span><h3>Published layers <em>{layers.length}</em></h3></div><button className="icon-button" title="Refresh layers" onClick={() => refresh().catch(e => notify(e.message, 'error'))}><RefreshCcw size={16}/></button></div>
@@ -133,7 +138,15 @@ export default function App() {
           <div className="map-workspace"><MapPanel layers={mapLayers} selectedLayer={selectedLayer} onOpenAttributes={() => setTableOpen(true)} zoomTarget={zoomTarget}/>
             {tableOpen && selectedLayer && <AttributeTable layer={selectedLayer} onClose={() => setTableOpen(false)}/>} 
           </div>
-          {settingsOpen && selectedLayer && <LayerSettings layer={selectedLayer} onClose={() => setSettingsOpen(false)} onUpdated={handleUpdated} onDeleted={handleDeleted} onZoom={item => setZoomTarget({ bbox: item.bbox, token: Date.now() })} notify={notify}/>} 
+          {settingsOpen && selectedLayer && <LayerSettings
+  layer={selectedLayer}
+  layers={layers}
+  onClose={() => setSettingsOpen(false)}
+  onUpdated={handleUpdated}
+  onDeleted={handleDeleted}
+  onZoom={item => setZoomTarget({ bbox: item.bbox, token: Date.now() })}
+  notify={notify}
+/>} 
         </div>
         <footer className="statusbar"><span><Map size={13}/> OpenStreetMap basemap</span><span><Crosshair size={13}/> EPSG:4326 · WGS 84</span><span><Table2 size={13}/> WFS / WMS + legacy PostGIS</span><span className="statusbar-right">Built for RUDA workflow testing, not production</span></footer>
           </>

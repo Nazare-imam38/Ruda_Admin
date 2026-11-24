@@ -5,6 +5,7 @@ import { api } from '../api';
 const TABS = [
   { id: 'labels', name: 'Labels', icon: Tags },
   { id: 'attributes', name: 'Attributes', icon: Table2 },
+  { id: 'relationship', name: 'Relationship', icon: Database },
   { id: 'appearance', name: 'Style', icon: Palette },
   { id: 'data', name: 'Data', icon: Database },
 ];
@@ -29,7 +30,7 @@ function FieldPicker({ names, selected, onChange, emptyText }) {
   );
 }
 
-export default function LayerSettings({ layer, onClose, onUpdated, onDeleted, onZoom, notify }) {
+export default function LayerSettings({ layer, layers = [], onClose, onUpdated, onDeleted, onZoom, notify }) {
   const isRaster = layer.geometry_type==='Raster';
   const published = !!layer.publication?.kind;
   const [draft, setDraft] = useState({});
@@ -49,19 +50,79 @@ export default function LayerSettings({ layer, onClose, onUpdated, onDeleted, on
         fill_opacity: layer.style?.fill_opacity ?? 0.3,
         line_width: layer.style?.line_width ?? 3,
         point_radius: layer.style?.point_radius ?? 6, raster_opacity: layer.style?.raster_opacity ?? 1 },
+
+        relationship: {
+  parent_layer_id: layer.relationship?.parent_layer_id || '',
+  parent_field: layer.relationship?.parent_field || '',
+  child_field: layer.relationship?.child_field || '',
+},
     });
   }, [layer]);
   useEffect(()=>{setTab(isRaster?'appearance':'labels');},[layer.id,isRaster]);
   const edit = (key, value) => setDraft(d => ({ ...d, [key]: value }));
   const editStyle = (key, value) => setDraft(d => ({ ...d, style: { ...d.style, [key]: value } }));
-  const save = async () => {
-    setBusy(true);
-    try {
-      await onUpdated(layer.id, draft);
-      notify('Labels, attributes and layer settings saved.', 'success');
-    } catch (e) { notify(e.message, 'error'); }
-    finally { setBusy(false); }
+  const parentLayers = layers.filter(
+  item => item.id !== layer.id && item.geometry_type !== 'Raster'
+);
+
+const relationship = draft.relationship || {};
+
+const selectedParent = parentLayers.find(
+  item => String(item.id) === String(relationship.parent_layer_id)
+);
+
+const editRelationship = (key, value) => {
+  setDraft(d => ({
+    ...d,
+    relationship: {
+      ...d.relationship,
+      [key]: value,
+    },
+  }));
+};
+
+const changeParentLayer = (value) => {
+  setDraft(d => ({
+    ...d,
+    relationship: {
+      parent_layer_id: value,
+      parent_field: '',
+      child_field: '',
+    },
+  }));
+};
+const save = async () => {
+  const relation = draft.relationship || {};
+
+  if (
+    relation.parent_layer_id &&
+    (!relation.parent_field || !relation.child_field)
+  ) {
+    notify('Please select both the parent field and child reference field.', 'error');
+    return;
+  }
+
+  const updatedDraft = {
+    ...draft,
+    relationship: relation.parent_layer_id
+      ? {
+          ...relation,
+          type: 'many-to-one',
+        }
+      : {},
   };
+
+  setBusy(true);
+
+  try {
+    await onUpdated(layer.id, updatedDraft);
+    notify('Layer settings and relationship saved.', 'success');
+  } catch (e) {
+    notify(e.message, 'error');
+  } finally {
+    setBusy(false);
+  }
+};
   const replace = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -139,6 +200,64 @@ export default function LayerSettings({ layer, onClose, onUpdated, onDeleted, on
           <button className="button full secondary" onClick={() => onZoom(layer)}><Compass size={15}/> Zoom to layer</button>
         </>}
         {tab === 'data' && <>
+        {!isRaster && tab === 'relationship' && <>
+  <div className="section-heading">
+    <Database size={17}/>
+    <strong>Parent-child relationship</strong>
+  </div>
+
+  <p className="settings-help">
+    Configure how this layer references another published layer.
+    This saves relationship metadata only; original GIS attributes remain unchanged.
+  </p>
+
+  <div className="settings-field">
+    <label>Parent layer</label>
+    <select
+      value={relationship.parent_layer_id || ''}
+      onChange={e => changeParentLayer(e.target.value)}
+    >
+      <option value="">No parent layer</option>
+      {parentLayers.map(item => (
+        <option key={item.id} value={item.id}>{item.name}</option>
+      ))}
+    </select>
+  </div>
+
+  {relationship.parent_layer_id && (
+    <>
+      <div className="settings-field">
+        <label>Parent field</label>
+        <select
+          value={relationship.parent_field || ''}
+          onChange={e => editRelationship('parent_field', e.target.value)}
+        >
+          <option value="">Select parent field</option>
+          {(selectedParent?.field_names || []).map(field => (
+            <option key={field} value={field}>{field}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="settings-field">
+        <label>Child reference field</label>
+        <select
+          value={relationship.child_field || ''}
+          onChange={e => editRelationship('child_field', e.target.value)}
+        >
+          <option value="">Select child field</option>
+          {(layer.field_names || []).map(field => (
+            <option key={field} value={field}>{field}</option>
+          ))}
+        </select>
+      </div>
+
+      <p className="settings-help">
+        Example: District.ID → Tehsil.DISTRICT_I
+      </p>
+    </>
+  )}
+</>}
           <div className="section-heading"><Database size={17}/><strong>Storage and service</strong></div>
           <div className="db-table-card"><span>{published?'GeoServer published layer':'Legacy PostgreSQL table'}</span><strong>{published?`${layer.publication.workspace}:${layer.publication.name}`:`public.${layer.table_name||'pending'}`}</strong><small>{published?`${layer.publication.kind.toUpperCase()} · File storage · v${layer.version}`:'PostGIS · legacy dataset'}</small></div>
           <div className="settings-field"><label>Layer name (display only)</label><input value={draft.name || ''} onChange={e => edit('name', e.target.value)} /></div>

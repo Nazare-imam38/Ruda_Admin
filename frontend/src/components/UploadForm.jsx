@@ -17,7 +17,7 @@ function Fields({ names, value, change }) {
 function Range({ name, value, min, max, step=1, change }) {
   return <div className="settings-field"><label>{name} <strong>{value}</strong></label><input type="range" min={min} max={max} step={step} value={value} onChange={e=>change(Number(e.target.value))}/></div>;
 }
-export default function UploadForm({ onUploaded, notify, onPreview }) {
+export default function UploadForm({ layers = [], onUploaded, notify, onPreview }) {
   const [file, setFile] = useState(null);
   const [name, setName] = useState('');
   const [group, setGroup] = useState('Uploaded Layers');
@@ -25,6 +25,26 @@ export default function UploadForm({ onUploaded, notify, onPreview }) {
   const [preview, setPreview] = useState(null);
   const [configuration, setConfiguration] = useState(defaults(null));
   const [busy, setBusy] = useState('');
+  const [relationship, setRelationship] = useState({
+  parent_layer_id: '',
+  parent_field: '',
+  child_field: '',
+});
+
+const parentLayers = layers.filter(
+  layer => layer.geometry_type !== 'Raster'
+);
+
+const selectedParent = parentLayers.find(
+  layer => String(layer.id) === relationship.parent_layer_id
+);
+
+const relationshipComplete =
+  relationship.parent_layer_id &&
+  relationship.parent_field &&
+  relationship.child_field;
+
+const relationshipStarted = Object.values(relationship).some(Boolean);
   const edit=(k,v)=>setConfiguration(c=>({...c,[k]:v}));
   const style=(k,v)=>setConfiguration(c=>({...c,style:{...c.style,[k]:v}}));
   const raster = preview?.geometry_type === 'Raster';
@@ -44,7 +64,23 @@ export default function UploadForm({ onUploaded, notify, onPreview }) {
     e.preventDefault();
     if(!file||!preview||!name.trim())return;
     const d=makeFileForm();d.append('name',name.trim());d.append('group',group);if(projectId)d.append('project_id',projectId);
-    d.append('configuration',JSON.stringify(configuration));setBusy('publish');
+    if (relationshipStarted && !relationshipComplete) {
+  notify('Please select the parent layer, parent field and child field.', 'error');
+  return;
+}
+
+const uploadConfiguration = {
+  ...configuration,
+  relationship: relationshipComplete
+    ? {
+        ...relationship,
+        type: 'many-to-one',
+      }
+    : {},
+};
+
+d.append('configuration', JSON.stringify(uploadConfiguration));
+setBusy('publish');
     try{const created=await api.upload(d);notify(`${created.name} published through ${created.publication.kind.toUpperCase()}.`);setPreview(null);await onUploaded(created);}
     catch(e){notify(e.message,'error');}finally{setBusy('');}
   };
@@ -61,6 +97,67 @@ export default function UploadForm({ onUploaded, notify, onPreview }) {
     {preview&&<>
       <div className="preview-card"><strong>Validated · {raster?'WMS raster':'WFS vector'}</strong><div>{raster?`${preview.raster.width} × ${preview.raster.height} pixels · ${preview.raster.bands} bands`:`${preview.feature_count.toLocaleString()} ${preview.geometry_type} features`}</div><div>CRS: {preview.source_crs}</div><div>{raster?'Raster preview appears on map after publishing.':previewComplete?`Map preview: all ${previewCount.toLocaleString()} of ${preview.feature_count.toLocaleString()} features included.`:`Partial preview: ${previewCount.toLocaleString()} of ${preview.feature_count.toLocaleString()} features included. The preview limit does not restrict publication.`}</div></div>
       <div className="section-heading"><strong>Configure before publishing</strong></div>
+      {!raster && (
+  <>
+    <div className="section-heading">
+      <strong>Parent-child relationship (optional)</strong>
+    </div>
+
+    <label className="field-label">Parent layer</label>
+    <select
+      value={relationship.parent_layer_id}
+      onChange={e => setRelationship({
+        parent_layer_id: e.target.value,
+        parent_field: '',
+        child_field: '',
+      })}
+    >
+      <option value="">No parent layer</option>
+      {parentLayers.map(layer => (
+        <option key={layer.id} value={layer.id}>
+          {layer.name}
+        </option>
+      ))}
+    </select>
+
+    {relationship.parent_layer_id && (
+      <>
+        <label className="field-label">Parent field</label>
+        <select
+          value={relationship.parent_field}
+          onChange={e => setRelationship(r => ({
+            ...r,
+            parent_field: e.target.value,
+          }))}
+        >
+          <option value="">Select parent field</option>
+          {(selectedParent?.field_names || []).map(field => (
+            <option key={field} value={field}>{field}</option>
+          ))}
+        </select>
+
+        <label className="field-label">Child reference field</label>
+        <select
+          value={relationship.child_field}
+          onChange={e => setRelationship(r => ({
+            ...r,
+            child_field: e.target.value,
+          }))}
+        >
+          <option value="">Select child field</option>
+          {(preview.field_names || []).map(field => (
+            <option key={field} value={field}>{field}</option>
+          ))}
+        </select>
+
+        <p className="form-hint">
+          The child field must contain values matching the selected parent field.
+          Original GIS attributes will not be changed.
+        </p>
+      </>
+    )}
+  </>
+)}
       {raster?<Range name="Raster opacity" value={configuration.style.raster_opacity} min={0} max={1} step={.05} change={v=>style('raster_opacity',v)}/>:<>
         <div className="settings-field color-field"><label>Color</label><input type="color" value={configuration.style.color} onChange={e=>style('color',e.target.value)}/></div>
         {preview.geometry_type==='Polygon'&&<Range name="Fill opacity" value={configuration.style.fill_opacity} min={0} max={1} step={.05} change={v=>style('fill_opacity',v)}/>}
